@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand, ValueEnum};
 
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 #[command(name = "ctk")]
 #[command(about = "CTK - Cloud Toolkit")]
 #[command(author,version,about)]
@@ -8,6 +8,9 @@ pub struct CLI {
     // NOTE env value for this decorator is avilable to pass provider as ENV value - add it later
     #[arg(short, long, value_enum, default_value_t = CloudProviders::Aws)]
     pub provider: CloudProviders,
+
+    #[arg(short, long, action = clap::ArgAction::Count)]
+    pub verbose: u8,
 
     #[command(subcommand)]
     pub command: Commands,
@@ -19,11 +22,8 @@ pub enum CloudProviders {
     Aws,
      
 }
-
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 pub enum Commands{
-    /// Show version info
-    Version,
     ///// Configure CTK for selected provider
     //Config,
     ///// Show available providers

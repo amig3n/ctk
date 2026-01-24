@@ -5,6 +5,8 @@ use crate::actions::{ProviderActions, ProviderError};
 
 use crate::providers::aws::AwsProvider;
 
+use log::{info, debug, warn, error};
+
 #[derive(Debug)]
 pub enum AppError {
     ConnectionError,
@@ -39,7 +41,24 @@ impl From<ProviderError> for AppError {
 
 
 pub fn run_app() -> Result<(), AppError> {
+    debug!("Parsing command line arguments...");
     let cli = CLI::parse();
+
+    let log_level = match cli.verbose {
+        0 => "warn",
+        1 => "info",
+        2 => "debug",
+        _ => "trace",
+    };
+
+    // Initialize logger with the determined log level
+    env_logger::Builder::from_env(
+        env_logger::Env::default()
+        .default_filter_or(log_level)
+    ).init();
+
+    info!("Log level set to: {}", log_level);
+    debug!("CLI arguments: {:?}", cli);
 
     let provider: Box<dyn ProviderActions> = match cli.provider {
         CloudProviders::Aws => {
@@ -47,18 +66,18 @@ pub fn run_app() -> Result<(), AppError> {
         }
     };
 
-    match cli.command {
-        Commands::Version => {
-            println!("App version 1.0.0");
-        }
+    info!("Selected provider: {:?}", cli.provider);
 
+    match cli.command {
         Commands::Whoami => {
+            debug!("Executing 'whoami' command for {:?} provider", cli.provider);
             let user_data = provider.who_am_i()?;
             println!("Current user: {}", user_data);
         }
 
     };
 
+    debug!("Finished executing command.");
     // Application logic goes here
     Ok(())
 }
