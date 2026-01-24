@@ -5,13 +5,9 @@ mod actions;
 mod cli;
 mod providers;
 
-use log::{info, error, debug, warn};
-
-fn main() {
-    //env_logger::init();
-    //info!("CTK starting up...");
-    
-    match run_app() {
+#[tokio::main]
+async fn main() {
+    match run_app().await {
         Ok(_) => {}
         Err(e) => eprintln!("Error: {}", e),
     }

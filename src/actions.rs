@@ -9,7 +9,7 @@ pub enum ProviderError {
 /// Define list of actions that a single cloud provider should implement
 pub trait ProviderActions {
     /// Identify the current user
-    fn who_am_i(&self) -> Result<String, ProviderError>;
+    async fn who_am_i(&self) -> Result<String, ProviderError>;
     ///// Configure the provider
     //fn configure(&self) -> Result<(), ProviderError>;
     ///// List avilable instances

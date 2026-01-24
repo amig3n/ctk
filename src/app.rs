@@ -40,7 +40,7 @@ impl From<ProviderError> for AppError {
 }
 
 
-pub fn run_app() -> Result<(), AppError> {
+pub async fn run_app() -> Result<(), AppError> {
     debug!("Parsing command line arguments...");
     let cli = CLI::parse();
 
@@ -60,21 +60,29 @@ pub fn run_app() -> Result<(), AppError> {
     info!("Log level set to: {}", log_level);
     debug!("CLI arguments: {:?}", cli);
 
-    let provider: Box<dyn ProviderActions> = match cli.provider {
-        CloudProviders::Aws => {
-            Box::new(AwsProvider::new())
+
+    match cli.provider {
+
+         CloudProviders::Aws => {
+            debug!("Selected provider: AWS");
+            let provider = AwsProvider::new();
+
+            match cli.command {
+                Commands::Whoami => {
+                    debug!("Executing 'whoami' command for AWS provider");
+                    let user_data = provider.who_am_i().await?;
+                }
+
+                _ => {
+                    warn!("Command not exists or not-yet implemented");
+                }
+            }
+         }
+
+         _ => {
+            error!("Selected provider is not supported yet.");
+            return Err(AppError::GeneralError("Provider not supported".to_string()));
         }
-    };
-
-    info!("Selected provider: {:?}", cli.provider);
-
-    match cli.command {
-        Commands::Whoami => {
-            debug!("Executing 'whoami' command for {:?} provider", cli.provider);
-            let user_data = provider.who_am_i()?;
-            println!("Current user: {}", user_data);
-        }
-
     };
 
     debug!("Finished executing command.");
