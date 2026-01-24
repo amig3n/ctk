@@ -1,0 +1,7 @@
+[package]
+name = "ctk"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = { version = "4.3", features = ["derive"] }
