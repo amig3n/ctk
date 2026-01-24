@@ -11,7 +11,8 @@ Also, Im learning Rust, so this is a good opportunity to practice.
 If you feel like this tool could be useful for you, feel free to use it, contribute or give feedback.
 
 # Implementation List
-- [ ] Create app skeleton using `clap` crate
+- [x] Create app skeleton using `clap` crate
+- [x] Implement logger module
 - [ ] Implement basic AWS provider instatiaon and instructions
   - [ ] Get caller identity
   - [ ] List instances
