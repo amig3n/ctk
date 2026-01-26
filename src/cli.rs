@@ -12,6 +12,8 @@ pub struct CLI {
     #[arg(short, long, action = clap::ArgAction::Count)]
     pub verbose: u8,
 
+    // TODO: add global config for output
+
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -29,8 +31,8 @@ pub enum Commands{
     //Config,
     ///// Show available providers
     //Providers,
-    ///// Show instances
-    //Instances,
+    /// Show cloud instances
+    Instances,
     ///// Show parameters
     //Params,
     ///// Show cotainer registries

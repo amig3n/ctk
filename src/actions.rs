@@ -1,3 +1,6 @@
+// NOTE: will be refactored to use this trait later
+
+#[allow(dead_code)]
 /// Define possible errors that can occur in provider actions
 pub enum ProviderError {
     ConfigurationError,
@@ -6,6 +9,7 @@ pub enum ProviderError {
     GeneralError(String),
 }
 
+#[allow(dead_code)]
 /// Define list of actions that a single cloud provider should implement
 pub trait ProviderActions {
     /// Identify the current user

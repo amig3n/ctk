@@ -73,6 +73,11 @@ pub async fn run_app() -> Result<(), AppError> {
                     let user_data = provider.who_am_i().await?;
                 }
 
+                Commands::Instances => {
+                    debug!("Executing 'instances' command for AWS provider");
+                    let instances = provider.list_instances().await?;
+                }
+
                 _ => {
                     warn!("Command not exists or not-yet implemented");
                 }
