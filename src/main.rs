@@ -4,6 +4,7 @@ use app::run_app;
 mod actions;
 mod cli;
 mod providers;
+mod outputs;
 
 #[tokio::main]
 async fn main() {

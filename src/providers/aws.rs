@@ -1,6 +1,7 @@
 use crate::actions::{ProviderActions, ProviderError};
 use log::{info, debug, warn, error};
 
+
 use aws_sdk_sts::Client as STSClient;
 use aws_sdk_ec2::Client as EC2Client;
 
@@ -35,7 +36,7 @@ impl AwsProvider {
         Ok(())
     }
 
-    pub async fn list_instances(&self) -> Result<(), ProviderError> {
+    pub async fn list_instances(&self) -> Result<Vec<Vec<String>>, ProviderError> {
         info!("Listing AWS instances...");
 
         debug!("Creating EC2 client...");
@@ -53,12 +54,16 @@ impl AwsProvider {
             )?;
         debug!("Data about EC2 instances obtained successfully.");
 
+        // Prepare object that will be returned
+        let mut instances_data: Vec<Vec<String>> = vec![];
+
         debug!("Processing instances...");
         for reservation in response.reservations() {
             for instance in reservation.instances() {
+                let mut name_tag: String = "<unknown>".to_string();
+
                 // obtain instance name
                 debug!("Obtaining instance name");
-                let mut name_tag: String = "<unknown>".to_string();
                 for tag in instance.tags() {
                     if tag.key == Some("Name".to_string()) {
                         debug!("Found Name tag");
@@ -82,17 +87,24 @@ impl AwsProvider {
                     
                 };
 
-                // FIXME structured return for table
-                debug!("Printing instances table");
-                println!("{} | {} | {} | {}", 
-                    name_tag,
-                    &instance.instance_id().unwrap_or("<unknown>"),
-                    parsed_state,
-                    &instance.private_ip_address().unwrap_or("<unknown>"),
-                );
+                debug!("Parsing instnace id");
+                let parsed_id = &instance.instance_id().unwrap_or("<unknown>");
+
+                debug!("Parsing private_ip");
+                let parsed_private_ip = &instance.private_ip_address().unwrap_or("<unknown>");
+
+                let current_instance = vec![
+                    name_tag.to_string(),
+                    parsed_id.to_string(),
+                    parsed_state.to_string(),
+                    parsed_private_ip.to_string(),
+                ];
+                
+                debug!("Appending instance data for {}", &parsed_id);
+                instances_data.push(current_instance);
             }
         }
-        Ok(())
+        Ok(instances_data)
     }
 }
 
