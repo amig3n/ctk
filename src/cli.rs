@@ -34,7 +34,14 @@ pub enum Commands{
     /// Show cloud instances
     Instances,
     /// Show parameters
-    Params,
+    Params {
+        /// Parameter path
+        path: Option<String>,
+
+        /// Flag to allow decryption of secure parameters
+        #[arg(short, long, default_value_t = false)]
+        decrypt: bool,
+    },
     ///// Show cotainer registries
     //Creg, 
     /// Who am I?

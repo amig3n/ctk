@@ -162,7 +162,7 @@ impl AwsProvider {
         Ok(instance_data)
     }
 
-    pub async fn list_parameters(&self) -> Result<SsmResponse, ProviderError> {
+    pub async fn list_parameters(&self, param_path: Option<String>, decrypt: bool) -> Result<SsmResponse, ProviderError> {
         info!("Listing AWS SSM parameters...");
 
         debug!("Creating SSM client");
@@ -171,8 +171,9 @@ impl AwsProvider {
 
         debug!("Obtaining ssm parameters");
         let response = client.get_parameters_by_path()
-            .path("/")
+            .path(param_path.unwrap_or("/".to_string()))
             .recursive(true)
+            .with_decryption(decrypt)
             .send()
             .await;
 

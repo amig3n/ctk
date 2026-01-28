@@ -87,8 +87,8 @@ pub async fn run_app() -> Result<(), AppError> {
 
                 }
 
-                Commands::Params => {
-                    let data = provider.list_parameters().await?;
+                Commands::Params {path, decrypt} => {
+                    let data = provider.list_parameters(path, decrypt).await?;
                     let table: Table = data.into();
                     table.render(2)?;
                 }

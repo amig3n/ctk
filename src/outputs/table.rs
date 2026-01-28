@@ -78,11 +78,7 @@ impl From<SsmResponse> for Table {
                 "Type".to_string(),
                 "Value".to_string(),
             ],
-            vec![
-                TableColumnFormat::ToRight,
-                TableColumnFormat::ToLeft,
-                TableColumnFormat::ToLeft,
-            ].into(),
+            None,
         );
 
         for parameter in response.parameters {
