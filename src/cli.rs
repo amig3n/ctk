@@ -33,8 +33,8 @@ pub enum Commands{
     //Providers,
     /// Show cloud instances
     Instances,
-    ///// Show parameters
-    //Params,
+    /// Show parameters
+    Params,
     ///// Show cotainer registries
     //Creg, 
     /// Who am I?

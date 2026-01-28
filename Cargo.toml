@@ -12,3 +12,4 @@ aws-sdk-sts = "1.1"
 tokio = { version = "1", features = ["full"] }
 aws-sdk-ec2 = "1.202.0"
 console = "0.16.2"
+aws-sdk-ssm = "1.102.0"

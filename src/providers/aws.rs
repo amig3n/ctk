@@ -1,12 +1,67 @@
-use crate::actions::{ProviderActions, ProviderError};
-use log::{info, debug, warn, error};
-
+use crate::actions::ProviderError;
+use aws_config::{load_defaults,BehaviorVersion};
+use log::{info, debug, error};
 
 use aws_sdk_sts::Client as STSClient;
 use aws_sdk_ec2::Client as EC2Client;
+use aws_sdk_ssm::Client as SSMClient;
 
 #[derive(Debug)]
 pub struct AwsProvider {}
+
+#[derive(Debug)]
+pub struct Ec2Instance {
+    pub name: String,
+    pub instance_id: String,
+    pub state: String,
+    pub private_ip: String,
+}
+
+#[derive(Debug)]
+pub struct Ec2Response {
+    pub instances: Vec<Ec2Instance>,
+}
+
+impl Ec2Response {
+    pub fn new() -> Self {
+        Ec2Response {
+            instances: Vec::new(),
+        }
+    }
+
+    pub fn push(&mut self, instance: Ec2Instance) {
+        self.instances.push(instance);
+    }
+}
+
+impl FromIterator<Ec2Instance> for Ec2Response {
+    fn from_iter<I: IntoIterator<Item = Ec2Instance>>(iter: I) -> Self {
+        let instances: Vec<Ec2Instance> = iter.into_iter().collect();
+        Ec2Response { instances }
+    }
+
+}
+
+#[derive(Debug)]
+pub struct SsmParameter {
+    pub name: String,
+    pub r#type: String,
+    pub value: String,
+}
+
+#[derive(Debug)]
+pub struct SsmResponse {
+    pub parameters: Vec<SsmParameter>,
+}
+
+impl FromIterator<SsmParameter> for SsmResponse {
+    fn from_iter<I: IntoIterator<Item = SsmParameter>>(iter: I) -> Self {
+        let parameters: Vec<SsmParameter> = iter.into_iter().collect();
+        SsmResponse { parameters }
+    }
+
+}
+
 
 impl AwsProvider {
     pub fn new() -> Self {
@@ -36,7 +91,7 @@ impl AwsProvider {
         Ok(())
     }
 
-    pub async fn list_instances(&self) -> Result<Vec<Vec<String>>, ProviderError> {
+    pub async fn list_instances(&self) -> Result<Ec2Response, ProviderError> {
         info!("Listing AWS instances...");
 
         debug!("Creating EC2 client...");
@@ -55,7 +110,7 @@ impl AwsProvider {
         debug!("Data about EC2 instances obtained successfully.");
 
         // Prepare object that will be returned
-        let mut instances_data: Vec<Vec<String>> = vec![];
+        let mut instance_data: Ec2Response = Ec2Response::new();
 
         debug!("Processing instances...");
         for reservation in response.reservations() {
@@ -93,18 +148,48 @@ impl AwsProvider {
                 debug!("Parsing private_ip");
                 let parsed_private_ip = &instance.private_ip_address().unwrap_or("<unknown>");
 
-                let current_instance = vec![
-                    name_tag.to_string(),
-                    parsed_id.to_string(),
-                    parsed_state.to_string(),
-                    parsed_private_ip.to_string(),
-                ];
+                let current_instance = Ec2Instance {
+                    name: name_tag,
+                    instance_id: parsed_id.to_string(),
+                    state: parsed_state,
+                    private_ip: parsed_private_ip.to_string(),
+                };
                 
                 debug!("Appending instance data for {}", &parsed_id);
-                instances_data.push(current_instance);
+                instance_data.push(current_instance);
             }
         }
-        Ok(instances_data)
+        Ok(instance_data)
+    }
+
+    pub async fn list_parameters(&self) -> Result<SsmResponse, ProviderError> {
+        info!("Listing AWS SSM parameters...");
+
+        debug!("Creating SSM client");
+        let config = load_defaults(BehaviorVersion::latest()).await;
+        let client = SSMClient::new(&config);
+
+        debug!("Obtaining ssm parameters");
+        let response = client.get_parameters_by_path()
+            .path("/")
+            .recursive(true)
+            .send()
+            .await;
+
+        debug!("SSM parameters obtained successfully");
+        let parsed_data: SsmResponse = response.iter()
+            .flat_map(|page| page.parameters())
+            .map(|param| {
+                SsmParameter {
+                    name: param.name().unwrap_or("<unknown>").to_string(),
+                    r#type: param.r#type().map(|t| t.as_str().to_string()).unwrap_or("?".to_string()),
+                    value:param.value().unwrap_or("<unknown>").to_string(),
+                }
+            })
+            .collect();
+
+        debug!("Parsed SSM parameters successfully");
+        Ok(parsed_data)
     }
 }
 

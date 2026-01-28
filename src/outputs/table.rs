@@ -3,6 +3,8 @@ use std::io::Write;
 use std::fmt;
 use console;
 
+use crate::providers::aws::{Ec2Response, SsmResponse};
+
 pub struct Table {
     format: Vec<TableColumnFormat>,
     rows: Vec<Vec<String>>,
@@ -37,6 +39,66 @@ impl From<std::io::Error> for TableError {
         TableError::IOError(err)
     }
 }
+
+impl From<Ec2Response> for Table {
+    fn from(response: Ec2Response) -> Self {
+        let mut table = Table::new(
+            vec![
+                "Name".to_string(),
+                "Instance ID".to_string(),
+                "State".to_string(),
+                "Private IP".to_string(),
+            ],
+            vec![
+                TableColumnFormat::ToRight,
+                TableColumnFormat::ToLeft,
+                TableColumnFormat::ToLeft,
+                TableColumnFormat::ToLeft,
+            ].into(),
+        );
+
+        for instance in response.instances {
+            let _ = table.push(vec![
+                instance.name,
+                instance.instance_id,
+                instance.state,
+                instance.private_ip,
+            ]);
+        }
+
+        table
+    }
+}
+
+impl From<SsmResponse> for Table {
+    fn from(response: SsmResponse) -> Self {
+        let mut table = Table::new(
+            vec![
+                "Name".to_string(),
+                "Type".to_string(),
+                "Value".to_string(),
+            ],
+            vec![
+                TableColumnFormat::ToRight,
+                TableColumnFormat::ToLeft,
+                TableColumnFormat::ToLeft,
+            ].into(),
+        );
+
+        for parameter in response.parameters {
+            let _ = table.push(vec![
+                parameter.name,
+                parameter.r#type,
+                parameter.value,
+            ]);
+        }
+
+        table
+
+    }
+
+}
+
 
 impl Table {
     /// Create new table object

@@ -82,28 +82,14 @@ pub async fn run_app() -> Result<(), AppError> {
                 Commands::Instances => {
                     debug!("Executing 'instances' command for AWS provider");
                     let instances = provider.list_instances().await?;
+                    let table: Table = instances.into();
+                    table.render(2)?;
 
-                    // Prepare table for output
-                    let mut table = Table::new(
-                        vec![
-                            "Name".to_string(),
-                            "InstanceID".to_string(),
-                            "State".to_string(),
-                            "Private IP".to_string(),
-                        ], 
-                        Some(vec![
-                            TableColumnFormat::ToRight,
-                            TableColumnFormat::ToLeft,
-                            TableColumnFormat::ToLeft,
-                            TableColumnFormat::ToLeft,
-                        ]),
-                    );
+                }
 
-                    for row in instances {
-                        table.push(row)?;
-                    }
-
-                    // render the table
+                Commands::Params => {
+                    let data = provider.list_parameters().await?;
+                    let table: Table = data.into();
                     table.render(2)?;
                 }
 
