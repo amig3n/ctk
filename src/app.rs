@@ -8,6 +8,7 @@ use crate::outputs::table::{Table, TableColumnFormat, TableError};
 
 #[derive(Debug)]
 pub enum AppError {
+    AuthenticationError(String),
     ConnectionError,
     TimeoutError,
     PermissionError,
@@ -18,6 +19,7 @@ pub enum AppError {
 impl std::fmt::Display for AppError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            AppError::AuthenticationError(err) => write!(f, "Authentication error occurred: {}", err),
             AppError::ConnectionError => write!(f, "Connection error occurred"),
             AppError::TimeoutError => write!(f, "Operation timed out"),
             AppError::PermissionError => write!(f, "Permission denied"),
@@ -33,9 +35,12 @@ impl From<ProviderError> for AppError {
     fn from(error: ProviderError) -> Self {
         match error {
             ProviderError::ConfigurationError => AppError::GeneralError("Configuration error".to_string()),
-            ProviderError::AuthenticationError => AppError::PermissionError,
+            ProviderError::AuthenticationError => AppError::AuthenticationError("Authentication failed".to_string()),
             ProviderError::ResourceNotFound => AppError::GeneralError("Resource not found".to_string()),
             ProviderError::GeneralError(msg) => AppError::GeneralError(msg),
+            ProviderError::TimeoutError => AppError::TimeoutError,
+            ProviderError::ConnectionError => AppError::ConnectionError,
+            ProviderError::PermissionError => AppError::PermissionError,
         }
     }
 }

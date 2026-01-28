@@ -5,6 +5,7 @@ use log::{info, debug, error};
 use aws_sdk_sts::Client as STSClient;
 use aws_sdk_ec2::Client as EC2Client;
 use aws_sdk_ssm::Client as SSMClient;
+use aws_sdk_ssm::error::SdkError;
 
 #[derive(Debug)]
 pub struct AwsProvider {}
@@ -54,12 +55,23 @@ pub struct SsmResponse {
     pub parameters: Vec<SsmParameter>,
 }
 
+impl SsmResponse {
+    pub fn new() -> Self {
+        SsmResponse {
+            parameters: Vec::new(),
+        }
+    }
+
+    pub fn push(&mut self, parameter: SsmParameter) {
+        self.parameters.push(parameter);
+    }
+}
+
 impl FromIterator<SsmParameter> for SsmResponse {
     fn from_iter<I: IntoIterator<Item = SsmParameter>>(iter: I) -> Self {
         let parameters: Vec<SsmParameter> = iter.into_iter().collect();
         SsmResponse { parameters }
     }
-
 }
 
 
@@ -175,8 +187,23 @@ impl AwsProvider {
             .recursive(true)
             .with_decryption(decrypt)
             .send()
-            .await;
+            .await
+            .map_err(|e| {
+                match e {
+                    SdkError::DispatchFailure(_) => {
+                        return ProviderError::ConnectionError;
+                    },
+                    SdkError::TimeoutError(_) => {
+                        return ProviderError::TimeoutError;
+                    },
+                    _ => {
+                        return ProviderError::GeneralError(format!("Failed to get SSM parameters: {}", e));
+                    }
 
+                }
+            }
+            );
+        
         debug!("SSM parameters obtained successfully");
         let parsed_data: SsmResponse = response.iter()
             .flat_map(|page| page.parameters())
