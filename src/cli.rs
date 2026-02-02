@@ -12,6 +12,8 @@ pub struct CLI {
     #[arg(short, long, action = clap::ArgAction::Count)]
     pub verbose: u8,
 
+    // TODO: add global config for output
+
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -22,17 +24,25 @@ pub enum CloudProviders {
     Aws,
      
 }
+
 #[derive(Subcommand, Debug)]
 pub enum Commands{
     ///// Configure CTK for selected provider
     //Config,
     ///// Show available providers
     //Providers,
-    ///// Show instances
-    //Instances,
-    ///// Show parameters
-    //Params,
-    ///// Show cotainer registries
+    /// Show cloud instances
+    Instances,
+    /// Show parameters
+    Params {
+        /// Parameter path
+        path: Option<String>,
+
+        /// Flag to allow decryption of secure parameters
+        #[arg(short, long, default_value_t = false)]
+        decrypt: bool,
+    },
+    ///// Show container registries
     //Creg, 
     /// Who am I?
     Whoami,
