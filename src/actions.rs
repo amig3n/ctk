@@ -19,7 +19,7 @@ pub trait ProviderActions {
     async fn who_am_i(&self) -> Result<String, ProviderError>;
     ///// Configure the provider
     //fn configure(&self) -> Result<(), ProviderError>;
-    /// List avilable instances
+    /// List available instances
     fn list_instances(&self) -> Result<Vec<String>, ProviderError>;
     /// List defined parameters
     fn list_parameters(&self) -> Result<Vec<String>, ProviderError>;
