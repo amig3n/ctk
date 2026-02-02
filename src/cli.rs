@@ -42,7 +42,7 @@ pub enum Commands{
         #[arg(short, long, default_value_t = false)]
         decrypt: bool,
     },
-    ///// Show cotainer registries
+    ///// Show container registries
     //Creg, 
     /// Who am I?
     Whoami,
