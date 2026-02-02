@@ -112,14 +112,17 @@ impl From<STSResponse> for Table {
 
 
 impl Table {
+    // FIXME should return result with error handling
     /// Create new table object
     pub fn new(headers: Vec<String>, format: Option<Vec<TableColumnFormat>>) -> Table {
+        //FIXME possible panic, due to not enough validation of format string
+        // TODO rewrite this format matching to use builder pattern
         let parsed_format = match &format {
             Some(f) => f,
             None => &vec![TableColumnFormat::default(); headers.len()],
         };
 
-        return Table {
+        Table {
             format: parsed_format.to_vec(),
             rows: vec![headers],
             show_header: true,
@@ -209,11 +212,8 @@ impl Table {
            stdout.write_all(table_row.join(&separator).as_bytes())?;
            stdout.write_all(b"\n")?;
         }
-
-    
         stdout.flush()?;
         Ok(())
     }
-
-
 }
+

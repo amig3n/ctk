@@ -78,6 +78,8 @@ pub async fn run_app() -> Result<(), AppError> {
             debug!("Selected provider: AWS");
             let provider = AwsProvider::new();
 
+
+            //FIXME handle data captures and single table.render invocation
             match cli.command {
                 Commands::Whoami => {
                     debug!("Executing 'whoami' command for AWS provider");

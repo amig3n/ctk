@@ -214,9 +214,9 @@ impl AwsProvider {
         
         debug!("SSM parameters obtained successfully");
         let parsed_data: SsmResponse = response.iter()
-            .flat_map(|page| page.parameters())
+            .flat_map(|page| page.parameters()) // FIXME possible empty iterator, and non-handled errors
             .map(|param| {
-                let mut parsed_value: String = String::new();
+                let mut parsed_value: String = String::new(); //FIXME try rewrite without mut
                 if param.r#type() == Some(&ParameterType::SecureString) && decrypt {
                    parsed_value = param.value().unwrap_or("<unknown>").to_string(); 
                 } else if param.r#type() == Some(&ParameterType::SecureString) && !decrypt {
