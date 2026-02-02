@@ -6,9 +6,17 @@ use aws_sdk_sts::Client as STSClient;
 use aws_sdk_ec2::Client as EC2Client;
 use aws_sdk_ssm::Client as SSMClient;
 use aws_sdk_ssm::error::SdkError;
+use aws_sdk_ssm::types::ParameterType;
 
 #[derive(Debug)]
 pub struct AwsProvider {}
+
+#[derive(Debug)]
+pub struct STSResponse {
+   pub account: String,
+   pub arn: String,
+   pub user_id: String
+}
 
 #[derive(Debug)]
 pub struct Ec2Instance {
@@ -80,7 +88,7 @@ impl AwsProvider {
         AwsProvider {}
     }
 
-    pub async fn who_am_i(&self) -> Result<(), ProviderError> {
+    pub async fn who_am_i(&self) -> Result<STSResponse, ProviderError> {
         info!("Fetching AWS identity...");
 
         // Create AWS SDK client
@@ -96,11 +104,11 @@ impl AwsProvider {
             ProviderError::AuthenticationError
         })?;
 
-        // FIXME consider returning a struct instead of printing directly
-        println!("AWS Account: {}", response.account().unwrap_or("Unknown"));
-        println!("AWS UserId: {}", response.user_id().unwrap_or("Unknown"));
-        println!("AWS ARN: {}", response.arn().unwrap_or("Unknown"));
-        Ok(())
+        Ok(STSResponse {
+            account: response.account().unwrap_or("<unknown>").to_string(),
+            arn: response.arn().unwrap_or("<unknown>").to_string(),
+            user_id: response.user_id().unwrap_or("<unknkown>").to_string(),
+        })
     }
 
     pub async fn list_instances(&self) -> Result<Ec2Response, ProviderError> {
@@ -208,10 +216,19 @@ impl AwsProvider {
         let parsed_data: SsmResponse = response.iter()
             .flat_map(|page| page.parameters())
             .map(|param| {
+                let mut parsed_value: String = String::new();
+                if param.r#type() == Some(&ParameterType::SecureString) && decrypt {
+                   parsed_value = param.value().unwrap_or("<unknown>").to_string(); 
+                } else if param.r#type() == Some(&ParameterType::SecureString) && !decrypt {
+                   parsed_value = "<encrypted>".to_string();
+                } else {
+                   parsed_value = param.value().unwrap_or("<unknown>").to_string();
+                }
+
                 SsmParameter {
                     name: param.name().unwrap_or("<unknown>").to_string(),
                     r#type: param.r#type().map(|t| t.as_str().to_string()).unwrap_or("?".to_string()),
-                    value:param.value().unwrap_or("<unknown>").to_string(),
+                    value: parsed_value,
                 }
             })
             .collect();

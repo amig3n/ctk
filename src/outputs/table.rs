@@ -3,11 +3,12 @@ use std::io::Write;
 use std::fmt;
 use console;
 
-use crate::providers::aws::{Ec2Response, SsmResponse};
+use crate::providers::aws::{STSResponse, Ec2Response, SsmResponse};
 
 pub struct Table {
     format: Vec<TableColumnFormat>,
     rows: Vec<Vec<String>>,
+    show_header: bool,
 }
 
 #[derive(Debug)]
@@ -94,6 +95,20 @@ impl From<SsmResponse> for Table {
     }
 
 }
+impl From<STSResponse> for Table {
+    fn from(response: STSResponse) -> Self {
+        let mut table: Table = Table::new(
+            vec!["Param".to_string(), "Value".to_string()],
+            None,
+        ).set_header(false);
+
+        table.push(vec!["AWS ARN:".to_string(), response.arn]);
+        table.push(vec!["User ID:".to_string(), response.user_id]);
+        table.push(vec!["Account:".to_string(), response.account]);
+
+        table
+    }
+}
 
 
 impl Table {
@@ -107,7 +122,13 @@ impl Table {
         return Table {
             format: parsed_format.to_vec(),
             rows: vec![headers],
+            show_header: true,
         }
+    }
+
+    pub fn set_header(mut self, show: bool) -> Self {
+        self.show_header = show;
+        self
     }
 
     /// Push new row to the table
@@ -149,7 +170,9 @@ impl Table {
         // container for ready table
         let mut ready_table: Vec<Vec<String>> = vec![];
 
-        for row in &self.rows {
+        let start_index = if self.show_header { 0 } else { 1 };
+
+        for row in &self.rows[start_index..] {
             let mut current_row: Vec<String> = vec![];
 
             for (index,field) in row.iter().enumerate() {

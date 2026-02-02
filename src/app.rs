@@ -82,6 +82,9 @@ pub async fn run_app() -> Result<(), AppError> {
                 Commands::Whoami => {
                     debug!("Executing 'whoami' command for AWS provider");
                     let user_data = provider.who_am_i().await?;
+                    let table: Table = user_data.into();
+                    table.render(2)?;
+
                 }
 
                 Commands::Instances => {
