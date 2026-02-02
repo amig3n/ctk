@@ -162,7 +162,7 @@ impl AwsProvider {
                     
                 };
 
-                debug!("Parsing instnace id");
+                debug!("Parsing instance id");
                 let parsed_id = &instance.instance_id().unwrap_or("<unknown>");
 
                 debug!("Parsing private_ip");
