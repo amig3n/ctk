@@ -9,6 +9,8 @@ pub struct Table {
     format: Vec<TableColumnFormat>,
     rows: Vec<Vec<String>>,
     show_header: bool,
+    truncate_after: usize, // length of rows truncation, zero -> no truncation, default 80
+    column_padding: usize, // columns padding moved from render function
 }
 
 #[derive(Debug)]
@@ -70,6 +72,8 @@ impl From<Ec2Response> for Table {
                 TableColumnFormat::ToLeft,
             ],
             rows: parsed_response,
+            truncate_after: 0,
+            column_padding: 2,
         }
     }
 }
@@ -96,6 +100,8 @@ impl From<SsmResponse> for Table {
             show_header: true,
             format: Table::default_format_for_length(3),
             rows: parsed_response,
+            truncate_after: 80,
+            column_padding: 2,
         }
 
     }
@@ -112,12 +118,18 @@ impl From<STSResponse> for Table {
                 vec!["User ID:".to_string(), response.user_id],
                 vec!["Account:".to_string(), response.account],
             ],
+            truncate_after: 80,
+            column_padding: 2,
         }
     }
 }
 
 
 impl Table {
+    pub fn default_format_for_length(length: usize) -> Vec<TableColumnFormat> {
+        vec![TableColumnFormat::default(); length]
+    }
+
     // FIXME should return result with error handling
     /// Create new table object
     pub fn new(headers: Vec<impl Into<String>>) -> Table {
@@ -132,23 +144,36 @@ impl Table {
             format: vec![TableColumnFormat::default(); headers_length],
             rows: vec![parsed_header],
             show_header: true,
+            truncate_after: 0,
+            column_padding: 2,
         }
     }
 
+    /// Set header appearence flag
     pub fn show_header(mut self, show: bool) -> Self {
         self.show_header = show;
         self
     }
 
+    /// Set formatting vector
     pub fn with_format(mut self, format: Vec<TableColumnFormat>) -> Self {
         assert_eq!(format.len(), self.rows[0].len());
         self.format = format;
         self
     }
 
-    pub fn default_format_for_length(length: usize) -> Vec<TableColumnFormat> {
-        return vec![TableColumnFormat::default(); length];
+    /// Set columns truncate length
+    pub fn with_truncate(mut self, truncate_length: usize) -> Self {
+        self.truncate_after = truncate_length;
+        self
     }
+
+    /// Set column padding
+    pub fn with_padding(mut self, padding: usize) -> Self {
+        self.column_padding = padding;
+        self
+    }
+
 
     /// Push new row to the table
     pub fn push(&mut self, row: Vec<impl Into<String>>) -> Result<(), TableError>  {
@@ -178,16 +203,16 @@ impl Table {
             for (index,field) in row.iter().enumerate() {
                 // if current field is longer than current column width, update it
                 let length = Self::calculate_text_length(field);
-                if length > column_width[index] {
-                    column_width[index] = length;
-                }
+                    if length > column_width[index] {
+                        column_width[index] = length;
+                    }
             }    
         }
         return column_width; 
     }
     
     /// Render the table after all data has been loaded
-    pub fn render(&self, column_padding: usize) -> Result<(), TableError> {
+    pub fn render(&self) -> Result<(), TableError> {
         // calculate each column width
         let column_width: Vec<usize> = self.calculate_width();
         
@@ -226,7 +251,7 @@ impl Table {
 
         // prepare necessities
         let mut stdout = io::stdout();
-        let separator = " ".repeat(column_padding);
+        let separator = " ".repeat(self.column_padding);
 
         // table is ready to be rendered
         for table_row in ready_table {
