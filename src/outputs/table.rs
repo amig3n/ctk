@@ -9,7 +9,6 @@ pub struct Table {
     format: Vec<TableColumnFormat>,
     rows: Vec<Vec<String>>,
     show_header: bool,
-    truncate_after: usize, // length of rows truncation, zero -> no truncation, default 80
     column_padding: usize, // columns padding moved from render function
 }
 
@@ -72,7 +71,6 @@ impl From<Ec2Response> for Table {
                 TableColumnFormat::ToLeft,
             ],
             rows: parsed_response,
-            truncate_after: 0,
             column_padding: 2,
         }
     }
@@ -100,7 +98,6 @@ impl From<SsmResponse> for Table {
             show_header: true,
             format: Table::default_format_for_length(3),
             rows: parsed_response,
-            truncate_after: 80,
             column_padding: 2,
         }
 
@@ -118,7 +115,6 @@ impl From<STSResponse> for Table {
                 vec!["User ID:".to_string(), response.user_id],
                 vec!["Account:".to_string(), response.account],
             ],
-            truncate_after: 80,
             column_padding: 2,
         }
     }
@@ -144,7 +140,6 @@ impl Table {
             format: vec![TableColumnFormat::default(); headers_length],
             rows: vec![parsed_header],
             show_header: true,
-            truncate_after: 0,
             column_padding: 2,
         }
     }
@@ -162,25 +157,20 @@ impl Table {
         self
     }
 
-    /// Set columns truncate length
-    pub fn with_truncate(mut self, truncate_length: usize) -> Self {
-        self.truncate_after = truncate_length;
-        self
-    }
-
     /// Set column padding
     pub fn with_padding(mut self, padding: usize) -> Self {
         self.column_padding = padding;
         self
     }
 
-
     /// Push new row to the table
     pub fn push(&mut self, row: Vec<impl Into<String>>) -> Result<(), TableError>  {
         if row.len() == self.rows[0].len() {
             let parsed_row: Vec<String> = row
                 .into_iter()
-                .map(|elem| elem.into())
+                .map(|elem| 
+                    elem.into()
+                )
                 .collect();
 
             self.rows.push(parsed_row);
