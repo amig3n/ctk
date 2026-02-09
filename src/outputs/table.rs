@@ -4,7 +4,7 @@ use std::fmt;
 use console;
 use colored::*;
 
-use crate::providers::aws::{STSResponse, Ec2Response, SsmResponse};
+use crate::responses::*;
 
 pub struct Table {
     format: Vec<TableColumnFormat>,
@@ -43,8 +43,8 @@ impl From<std::io::Error> for TableError {
     }
 }
 
-impl From<Ec2Response> for Table {
-    fn from(response: Ec2Response) -> Self {
+impl From<InstanceResponse> for Table {
+    fn from(response: InstanceResponse) -> Self {
         let mut parsed_response = vec![
             vec![
                 "Name".to_string(),
@@ -77,8 +77,8 @@ impl From<Ec2Response> for Table {
     }
 }
 
-impl From<SsmResponse> for Table {
-    fn from(response: SsmResponse) -> Self {
+impl From<ParameterResponse> for Table {
+    fn from(response: ParameterResponse) -> Self {
         let mut parsed_response = vec![
             vec![
                 "Name".to_string(),
@@ -105,8 +105,8 @@ impl From<SsmResponse> for Table {
     }
 
 }
-impl From<STSResponse> for Table {
-    fn from(response: STSResponse) -> Self {
+impl From<UserResponse> for Table {
+    fn from(response: UserResponse) -> Self {
         Table {
             show_header: false,
             format: Table::default_format_for_length(2),

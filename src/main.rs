@@ -5,6 +5,7 @@ mod actions;
 mod cli;
 mod providers;
 mod outputs;
+mod responses;
 
 #[tokio::main]
 async fn main() {

@@ -8,79 +8,10 @@ use aws_sdk_ssm::Client as SSMClient;
 use aws_sdk_ssm::error::SdkError;
 use aws_sdk_ssm::types::ParameterType;
 
+use crate::responses::*;
+
 #[derive(Debug)]
 pub struct AwsProvider {}
-
-#[derive(Debug)]
-pub struct STSResponse {
-   pub account: String,
-   pub arn: String,
-   pub user_id: String
-}
-
-#[derive(Debug)]
-pub struct Ec2Instance {
-    pub name: String,
-    pub instance_id: String,
-    pub state: String,
-    pub private_ip: String,
-}
-
-#[derive(Debug)]
-pub struct Ec2Response {
-    pub instances: Vec<Ec2Instance>,
-}
-
-impl Ec2Response {
-    pub fn new() -> Self {
-        Ec2Response {
-            instances: Vec::new(),
-        }
-    }
-
-    pub fn push(&mut self, instance: Ec2Instance) {
-        self.instances.push(instance);
-    }
-}
-
-impl FromIterator<Ec2Instance> for Ec2Response {
-    fn from_iter<I: IntoIterator<Item = Ec2Instance>>(iter: I) -> Self {
-        let instances: Vec<Ec2Instance> = iter.into_iter().collect();
-        Ec2Response { instances }
-    }
-
-}
-
-#[derive(Debug)]
-pub struct SsmParameter {
-    pub name: String,
-    pub r#type: String,
-    pub value: String,
-}
-
-#[derive(Debug)]
-pub struct SsmResponse {
-    pub parameters: Vec<SsmParameter>,
-}
-
-impl SsmResponse {
-    pub fn new() -> Self {
-        SsmResponse {
-            parameters: Vec::new(),
-        }
-    }
-
-    pub fn push(&mut self, parameter: SsmParameter) {
-        self.parameters.push(parameter);
-    }
-}
-
-impl FromIterator<SsmParameter> for SsmResponse {
-    fn from_iter<I: IntoIterator<Item = SsmParameter>>(iter: I) -> Self {
-        let parameters: Vec<SsmParameter> = iter.into_iter().collect();
-        SsmResponse { parameters }
-    }
-}
 
 
 impl AwsProvider {
@@ -88,7 +19,7 @@ impl AwsProvider {
         AwsProvider {}
     }
 
-    pub async fn who_am_i(&self) -> Result<STSResponse, ProviderError> {
+    pub async fn who_am_i(&self) -> Result<UserResponse, ProviderError> {
         info!("Fetching AWS identity...");
 
         // Create AWS SDK client
@@ -104,14 +35,14 @@ impl AwsProvider {
             ProviderError::AuthenticationError
         })?;
 
-        Ok(STSResponse {
+        Ok(UserResponse {
             account: response.account().unwrap_or("<unknown>").to_string(),
             arn: response.arn().unwrap_or("<unknown>").to_string(),
             user_id: response.user_id().unwrap_or("<unknkown>").to_string(),
         })
     }
 
-    pub async fn list_instances(&self) -> Result<Ec2Response, ProviderError> {
+    pub async fn list_instances(&self) -> Result<InstanceResponse, ProviderError> {
         info!("Listing AWS instances...");
 
         debug!("Creating EC2 client...");
@@ -130,7 +61,7 @@ impl AwsProvider {
         debug!("Data about EC2 instances obtained successfully.");
 
         // Prepare object that will be returned
-        let mut instance_data: Ec2Response = Ec2Response::new();
+        let mut instance_data: InstanceResponse = InstanceResponse::new();
 
         debug!("Processing instances...");
         for reservation in response.reservations() {
@@ -150,6 +81,8 @@ impl AwsProvider {
                     }
                 }
 
+                //TODO obtain fallback tag (configurable from yaml file)
+
                 debug!("Parsing instance state...");
                 let parsed_state = match &instance.state() {
                     Some(s) => {
@@ -168,7 +101,7 @@ impl AwsProvider {
                 debug!("Parsing private_ip");
                 let parsed_private_ip = &instance.private_ip_address().unwrap_or("<unknown>");
 
-                let current_instance = Ec2Instance {
+                let current_instance = InstanceData {
                     name: name_tag,
                     instance_id: parsed_id.to_string(),
                     state: parsed_state,
@@ -182,7 +115,7 @@ impl AwsProvider {
         Ok(instance_data)
     }
 
-    pub async fn list_parameters(&self, param_path: Option<String>, decrypt: bool) -> Result<SsmResponse, ProviderError> {
+    pub async fn list_parameters(&self, param_path: Option<String>, decrypt: bool) -> Result<ParameterResponse, ProviderError> {
         info!("Listing AWS SSM parameters...");
 
         debug!("Creating SSM client");
@@ -213,7 +146,7 @@ impl AwsProvider {
             );
         
         debug!("SSM parameters obtained successfully");
-        let parsed_data: SsmResponse = response.iter()
+        let parsed_data: ParameterResponse = response.iter()
             .flat_map(|page| page.parameters()) // FIXME possible empty iterator, and non-handled errors
             .map(|param| {
                 let mut parsed_value: String = String::new(); //FIXME try rewrite without mut
@@ -225,7 +158,7 @@ impl AwsProvider {
                    parsed_value = param.value().unwrap_or("<unknown>").to_string();
                 }
 
-                SsmParameter {
+                ParameterData {
                     name: param.name().unwrap_or("<unknown>").to_string(),
                     r#type: param.r#type().map(|t| t.as_str().to_string()).unwrap_or("?".to_string()),
                     value: parsed_value,
