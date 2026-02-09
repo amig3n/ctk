@@ -1,7 +1,7 @@
 use crate::cli::{CLI, Commands, CloudProviders};
 use clap::Parser;
 use crate::actions::{ProviderActions, ProviderError};
-use crate::providers::aws::AwsProvider;
+use crate::providers::aws::{AwsProvider, Ec2Response, STSResponse, SsmResponse};
 use log::{info, debug, warn, error};
 
 use crate::outputs::table::{Table, TableColumnFormat, TableError};
@@ -83,24 +83,24 @@ pub async fn run_app() -> Result<(), AppError> {
             match cli.command {
                 Commands::Whoami => {
                     debug!("Executing 'whoami' command for AWS provider");
-                    let user_data = provider.who_am_i().await?;
+                    let user_data: STSResponse = provider.who_am_i().await?;
                     let table: Table = user_data.into();
-                    table.render(2)?;
-
+                    table.with_padding(2).render()?;
                 }
 
                 Commands::Instances => {
                     debug!("Executing 'instances' command for AWS provider");
-                    let instances = provider.list_instances().await?;
+                    let instances: Ec2Response = provider.list_instances().await?;
                     let table: Table = instances.into();
-                    table.render(2)?;
+                    table.with_padding(2).render()?;
 
                 }
 
                 Commands::Params {path, decrypt} => {
-                    let data = provider.list_parameters(path, decrypt).await?;
-                    let table: Table = data.into();
-                    table.render(2)?;
+                    debug!("Executing 'params' for AWS provider");
+                    let params: SsmResponse = provider.list_parameters(path, decrypt).await?;
+                    let table: Table = params.into();
+                    table.with_padding(2).render()?;
                 }
 
                 _ => {

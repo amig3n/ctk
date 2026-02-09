@@ -2,6 +2,7 @@ use std::io;
 use std::io::Write;
 use std::fmt;
 use console;
+use colored::*;
 
 use crate::providers::aws::{STSResponse, Ec2Response, SsmResponse};
 
@@ -9,6 +10,7 @@ pub struct Table {
     format: Vec<TableColumnFormat>,
     rows: Vec<Vec<String>>,
     show_header: bool,
+    column_padding: usize, // columns padding moved from render function
 }
 
 #[derive(Debug)]
@@ -43,101 +45,166 @@ impl From<std::io::Error> for TableError {
 
 impl From<Ec2Response> for Table {
     fn from(response: Ec2Response) -> Self {
-        let mut table = Table::new(
+        let mut parsed_response = vec![
             vec![
                 "Name".to_string(),
                 "Instance ID".to_string(),
                 "State".to_string(),
                 "Private IP".to_string(),
-            ],
-            vec![
+            ]];
+
+            parsed_response.extend(
+                response.instances.into_iter()
+                .map(|i| vec![
+                    i.name,
+                    i.instance_id,
+                    Table::color_instance_state(i.state),
+                    i.private_ip,
+                ])
+            );
+        
+        Table {
+            show_header: true,
+            format: vec![
                 TableColumnFormat::ToRight,
                 TableColumnFormat::ToLeft,
                 TableColumnFormat::ToLeft,
                 TableColumnFormat::ToLeft,
-            ].into(),
-        );
-
-        for instance in response.instances {
-            let _ = table.push(vec![
-                instance.name,
-                instance.instance_id,
-                instance.state,
-                instance.private_ip,
-            ]);
+            ],
+            rows: parsed_response,
+            column_padding: 2,
         }
-
-        table
     }
 }
 
 impl From<SsmResponse> for Table {
     fn from(response: SsmResponse) -> Self {
-        let mut table = Table::new(
+        let mut parsed_response = vec![
             vec![
                 "Name".to_string(),
                 "Type".to_string(),
                 "Value".to_string(),
-            ],
-            None,
-        );
+            ]];
 
-        for parameter in response.parameters {
-            let _ = table.push(vec![
-                parameter.name,
-                parameter.r#type,
-                parameter.value,
-            ]);
+            parsed_response.extend(response.parameters.into_iter()
+                .map(|p| vec![
+                    p.name,
+                    Table::color_ssm_type(p.r#type),
+                    Table::color_boolean(p.value),
+                    ]
+                )
+            );
+
+        Table {
+            show_header: true,
+            format: Table::default_format_for_length(3),
+            rows: parsed_response,
+            column_padding: 2,
         }
-
-        table
 
     }
 
 }
 impl From<STSResponse> for Table {
     fn from(response: STSResponse) -> Self {
-        let mut table: Table = Table::new(
-            vec!["Param".to_string(), "Value".to_string()],
-            None,
-        ).set_header(false);
-
-        table.push(vec!["AWS ARN:".to_string(), response.arn]);
-        table.push(vec!["User ID:".to_string(), response.user_id]);
-        table.push(vec!["Account:".to_string(), response.account]);
-
-        table
+        Table {
+            show_header: false,
+            format: Table::default_format_for_length(2),
+            rows: vec![
+                vec!["Param".to_string(), "Value".to_string()],
+                vec!["AWS ARN:".to_string(), response.arn],
+                vec!["User ID:".to_string(), response.user_id],
+                vec!["Account:".to_string(), response.account],
+            ],
+            column_padding: 2,
+        }
     }
 }
 
 
 impl Table {
-    // FIXME should return result with error handling
-    /// Create new table object
-    pub fn new(headers: Vec<String>, format: Option<Vec<TableColumnFormat>>) -> Table {
-        //FIXME possible panic, due to not enough validation of format string
-        // TODO rewrite this format matching to use builder pattern
-        let parsed_format = match &format {
-            Some(f) => f,
-            None => &vec![TableColumnFormat::default(); headers.len()],
-        };
+    pub fn default_format_for_length(length: usize) -> Vec<TableColumnFormat> {
+        vec![TableColumnFormat::default(); length]
+    }
 
-        Table {
-            format: parsed_format.to_vec(),
-            rows: vec![headers],
-            show_header: true,
+    fn color_boolean(s: impl AsRef<str>) -> String {
+        let text = s.as_ref();
+        match text {
+            "true" => text.green().to_string(),
+            "false" => text.red().to_string(),
+            _ => text.to_string(),
         }
     }
 
-    pub fn set_header(mut self, show: bool) -> Self {
+    fn color_instance_state(s: impl AsRef<str>) -> String {
+        let text = s.as_ref();
+        match text {
+            "running" => text.green().to_string(),
+            "terminated" => text.red().to_string(),
+            "stopping" => text.yellow().to_string(),
+            "stopped" => text.blue().to_string(),
+            "<unknown>" => text.magenta().to_string(),
+            _ => text.to_string()
+
+        }
+    }
+
+    fn color_ssm_type(s: impl AsRef<str>) -> String {
+        let text = s.as_ref();
+        match text {
+            "SecureString" => text.red().to_string(),
+            _ => text.to_string(),
+        }
+    }
+
+    // FIXME should return result with error handling
+    /// Create new table object
+    pub fn new(headers: Vec<impl Into<String>>) -> Table {
+        let headers_length = headers.len();
+
+        // parse anything convertable to String
+        let parsed_header: Vec<String> = headers.into_iter()
+            .map(|elem| elem.into())
+            .collect();
+
+        Table {
+            format: vec![TableColumnFormat::default(); headers_length],
+            rows: vec![parsed_header],
+            show_header: true,
+            column_padding: 2,
+        }
+    }
+
+    /// Set header appearence flag
+    pub fn show_header(mut self, show: bool) -> Self {
         self.show_header = show;
         self
     }
 
+    /// Set formatting vector
+    pub fn with_format(mut self, format: Vec<TableColumnFormat>) -> Self {
+        assert_eq!(format.len(), self.rows[0].len());
+        self.format = format;
+        self
+    }
+
+    /// Set column padding
+    pub fn with_padding(mut self, padding: usize) -> Self {
+        self.column_padding = padding;
+        self
+    }
+
     /// Push new row to the table
-    pub fn push(&mut self, row: Vec<String>) -> Result<(), TableError>  {
+    pub fn push(&mut self, row: Vec<impl Into<String>>) -> Result<(), TableError>  {
         if row.len() == self.rows[0].len() {
-            self.rows.push(row);
+            let parsed_row: Vec<String> = row
+                .into_iter()
+                .map(|elem| 
+                    elem.into()
+                )
+                .collect();
+
+            self.rows.push(parsed_row);
             Ok(())
         } else {
             Err(TableError::IncorrectRowLength)
@@ -157,16 +224,17 @@ impl Table {
             for (index,field) in row.iter().enumerate() {
                 // if current field is longer than current column width, update it
                 let length = Self::calculate_text_length(field);
-                if length > column_width[index] {
-                    column_width[index] = length;
-                }
+                    if length > column_width[index] {
+                        column_width[index] = length;
+                    }
             }    
         }
         return column_width; 
     }
+
     
     /// Render the table after all data has been loaded
-    pub fn render(&self, column_padding: usize) -> Result<(), TableError> {
+    pub fn render(&self) -> Result<(), TableError> {
         // calculate each column width
         let column_width: Vec<usize> = self.calculate_width();
         
@@ -205,7 +273,7 @@ impl Table {
 
         // prepare necessities
         let mut stdout = io::stdout();
-        let separator = " ".repeat(column_padding);
+        let separator = " ".repeat(self.column_padding);
 
         // table is ready to be rendered
         for table_row in ready_table {
