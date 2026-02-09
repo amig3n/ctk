@@ -2,6 +2,7 @@ use std::io;
 use std::io::Write;
 use std::fmt;
 use console;
+use colored::*;
 
 use crate::providers::aws::{STSResponse, Ec2Response, SsmResponse};
 
@@ -57,7 +58,7 @@ impl From<Ec2Response> for Table {
                 .map(|i| vec![
                     i.name,
                     i.instance_id,
-                    i.state,
+                    Table::color_instance_state(i.state),
                     i.private_ip,
                 ])
             );
@@ -88,8 +89,8 @@ impl From<SsmResponse> for Table {
             parsed_response.extend(response.parameters.into_iter()
                 .map(|p| vec![
                     p.name,
-                    p.r#type,
-                    p.value,
+                    Table::color_ssm_type(p.r#type),
+                    Table::color_boolean(p.value),
                     ]
                 )
             );
@@ -124,6 +125,36 @@ impl From<STSResponse> for Table {
 impl Table {
     pub fn default_format_for_length(length: usize) -> Vec<TableColumnFormat> {
         vec![TableColumnFormat::default(); length]
+    }
+
+    fn color_boolean(s: impl AsRef<str>) -> String {
+        let text = s.as_ref();
+        match text {
+            "true" => text.green().to_string(),
+            "false" => text.red().to_string(),
+            _ => text.to_string(),
+        }
+    }
+
+    fn color_instance_state(s: impl AsRef<str>) -> String {
+        let text = s.as_ref();
+        match text {
+            "running" => text.green().to_string(),
+            "terminated" => text.red().to_string(),
+            "stopping" => text.yellow().to_string(),
+            "stopped" => text.blue().to_string(),
+            "<unknown>" => text.magenta().to_string(),
+            _ => text.to_string()
+
+        }
+    }
+
+    fn color_ssm_type(s: impl AsRef<str>) -> String {
+        let text = s.as_ref();
+        match text {
+            "SecureString" => text.red().to_string(),
+            _ => text.to_string(),
+        }
     }
 
     // FIXME should return result with error handling
@@ -200,6 +231,7 @@ impl Table {
         }
         return column_width; 
     }
+
     
     /// Render the table after all data has been loaded
     pub fn render(&self) -> Result<(), TableError> {
