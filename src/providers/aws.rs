@@ -1,4 +1,5 @@
-use crate::actions::ProviderError;
+use crate::actions::{ProviderError,ProviderActions};
+
 use aws_config::{load_defaults,BehaviorVersion};
 use log::{info, debug, error};
 
@@ -9,6 +10,7 @@ use aws_sdk_ssm::error::SdkError;
 use aws_sdk_ssm::types::ParameterType;
 
 use crate::responses::*;
+use async_trait::async_trait;
 
 #[derive(Debug)]
 pub struct AwsProvider {}
@@ -18,8 +20,11 @@ impl AwsProvider {
     pub fn new() -> Self {
         AwsProvider {}
     }
+}
 
-    pub async fn who_am_i(&self) -> Result<UserResponse, ProviderError> {
+#[async_trait]
+impl ProviderActions for AwsProvider {
+    async fn who_am_i(&self) -> Result<UserResponse, ProviderError> {
         info!("Fetching AWS identity...");
 
         // Create AWS SDK client
@@ -42,7 +47,7 @@ impl AwsProvider {
         })
     }
 
-    pub async fn list_instances(&self) -> Result<InstanceResponse, ProviderError> {
+    async fn list_instances(&self) -> Result<InstanceResponse, ProviderError> {
         info!("Listing AWS instances...");
 
         debug!("Creating EC2 client...");
@@ -115,7 +120,7 @@ impl AwsProvider {
         Ok(instance_data)
     }
 
-    pub async fn list_parameters(&self, param_path: Option<String>, decrypt: bool) -> Result<ParameterResponse, ProviderError> {
+    async fn list_parameters(&self, param_path: Option<String>, decrypt: bool) -> Result<ParameterResponse, ProviderError> {
         info!("Listing AWS SSM parameters...");
 
         debug!("Creating SSM client");

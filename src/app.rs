@@ -73,51 +73,47 @@ pub async fn run_app() -> Result<(), AppError> {
 
     info!("Log level set to: {}", log_level);
     debug!("CLI arguments: {:?}", cli);
-
-    match cli.provider {
-
-         CloudProviders::Aws => {
-            debug!("Selected provider: AWS");
-            let provider = AwsProvider::new();
-
-
-            //FIXME handle data captures and single table.render invocation
-            match cli.command {
-                Commands::Whoami => {
-                    debug!("Executing 'whoami' command for AWS provider");
-                    let user_data: UserResponse = provider.who_am_i().await?;
-                    let table: Table = user_data.into();
-                    table.with_padding(2).render()?;
-                }
-
-                Commands::Instances => {
-                    debug!("Executing 'instances' command for AWS provider");
-                    let instances: InstanceResponse = provider.list_instances().await?;
-                    let table: Table = instances.into();
-                    table.with_padding(2).render()?;
-
-                }
-
-                Commands::Params {path, decrypt} => {
-                    debug!("Executing 'params' for AWS provider");
-                    let params: ParameterResponse = provider.list_parameters(path, decrypt).await?;
-                    let table: Table = params.into();
-                    table.with_padding(2).render()?;
-                }
-
-                _ => {
-                    warn!("Command not exists or not-yet implemented");
-                    return Err(AppError::GeneralError("Command not yet implemented".to_string()));
-                }
-            }
-         }
-
-         _ => {
-            error!("Selected provider is not supported yet.");
-            return Err(AppError::GeneralError("Provider not supported".to_string()));
+    
+    let provider = match cli.provider {
+        CloudProviders::Aws => {
+            debug!("Using AWS provider");
+            AwsProvider::new()
+        }
+        _ => {
+            return Err(AppError::GeneralError("Provider not implemented".to_string()))
         }
     };
 
+    //FIXME handle data captures and single table.render invocation
+    match cli.command {
+        Commands::Whoami => {
+            debug!("Executing 'whoami' command for AWS provider");
+            let user_data: UserResponse = provider.who_am_i().await?;
+            let table: Table = user_data.into();
+            table.with_padding(2).render()?;
+        }
+
+        Commands::Instances => {
+            debug!("Executing 'instances' command for AWS provider");
+            let instances: InstanceResponse = provider.list_instances().await?;
+            let table: Table = instances.into();
+            table.with_padding(2).render()?;
+
+        }
+
+        Commands::Params {path, decrypt} => {
+            debug!("Executing 'params' for AWS provider");
+            let params: ParameterResponse = provider.list_parameters(path, decrypt).await?;
+            let table: Table = params.into();
+            table.with_padding(2).render()?;
+        }
+
+        _ => {
+            warn!("Command not exists or not-yet implemented");
+            return Err(AppError::GeneralError("Command not yet implemented".to_string()));
+        }
+    }
+ 
 
     //TODO move all display logic outside match
 
