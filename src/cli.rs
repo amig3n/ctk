@@ -22,7 +22,8 @@ pub struct CLI {
 pub enum CloudProviders {
     /// Amazon Web Services
     Aws,
-     
+    /// Cloudflare
+    CF,
 }
 
 #[derive(Subcommand, Debug)]

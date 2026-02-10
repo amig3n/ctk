@@ -4,6 +4,7 @@ use crate::actions::{ProviderActions, ProviderError};
 use log::{info, debug, warn, error};
 
 use crate::providers::aws::AwsProvider;
+use crate::providers::cloudflare::CloudflareProvider;
 
 use crate::outputs::table::{Table, TableColumnFormat, TableError};
 use crate::responses::*;
@@ -74,11 +75,15 @@ pub async fn run_app() -> Result<(), AppError> {
     info!("Log level set to: {}", log_level);
     debug!("CLI arguments: {:?}", cli);
     
-    let provider = match cli.provider {
+    let provider: Box<dyn ProviderActions> = match cli.provider {
         CloudProviders::Aws => {
             debug!("Using AWS provider");
-            AwsProvider::new()
-        }
+            Box::new(AwsProvider::new())
+        },
+        CloudProviders::CF => {
+            debug!("Using Cloudflare Provider");
+            Box::new(CloudflareProvider::new())
+        },
         _ => {
             return Err(AppError::GeneralError("Provider not implemented".to_string()))
         }
@@ -107,18 +112,12 @@ pub async fn run_app() -> Result<(), AppError> {
             let table: Table = params.into();
             table.with_padding(2).render()?;
         }
-
-        _ => {
-            warn!("Command not exists or not-yet implemented");
-            return Err(AppError::GeneralError("Command not yet implemented".to_string()));
-        }
     }
  
 
     //TODO move all display logic outside match
 
     debug!("Finished executing command.");
-    // Application logic goes here
     Ok(())
 }
 
