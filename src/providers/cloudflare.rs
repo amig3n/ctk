@@ -34,7 +34,7 @@ impl ProviderActions for CloudflareProvider {
             ],
         })
     }
-    async fn list_parameters(&self, path: Option<String>, decrypt: bool) -> Result<ParameterResponse, ProviderError> {
+    async fn list_parameters(&self, _path: Option<String>, _decrypt: bool) -> Result<ParameterResponse, ProviderError> {
         Ok(ParameterResponse {
             parameters: vec![
                 ParameterData{
@@ -59,7 +59,7 @@ impl ProviderActions for CloudflareProvider {
         })
     }
 
-    async fn list_container_registry_images(&self, registry: String) -> Result<CregResponse<CregImageResponse>, ProviderError> {
+    async fn list_container_registry_images(&self, _registry: String) -> Result<CregResponse<CregImageResponse>, ProviderError> {
         Ok(CregResponse{
             response: vec![
                 CregImageResponse {

@@ -122,13 +122,9 @@ pub async fn run_app() -> Result<(), AppError> {
                     let mut table: Table = Table::new(vec!["Tag"])
                         .with_padding(2);
 
-                    images.response.iter()
-                        .map(|image| {
-                            table.push(vec![
-                                image.tag.clone(),
-                            ]);
-                        });
-
+                    images.response.iter().for_each(|image| {
+                        let _ = table.push(vec![image.tag.clone()]);
+                    });
                     table.render()?;
                 },
                 None => {
@@ -138,8 +134,8 @@ pub async fn run_app() -> Result<(), AppError> {
                         .with_padding(2);
 
                     registries.response.iter()
-                        .map(|creg| {
-                            table.push(vec![creg.to_string()]);
+                        .for_each(|creg| {
+                            let _ = table.push(vec![creg.to_string()]);
                         });
                     table.render()?;
                 },
