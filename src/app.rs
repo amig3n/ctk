@@ -127,7 +127,7 @@ pub async fn run_app() -> Result<(), AppError> {
                             table.push(vec![
                                 image.tag.clone(),
                             ]);
-                        }).collect::<Vec<_>>();
+                        });
 
                     table.render()?;
                 },
@@ -140,7 +140,7 @@ pub async fn run_app() -> Result<(), AppError> {
                     registries.response.iter()
                         .map(|creg| {
                             table.push(vec![creg.to_string()]);
-                        }).collect::<Vec<_>>();
+                        });
                     table.render()?;
                 },
             }
