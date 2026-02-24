@@ -1,3 +1,5 @@
+use core::fmt;
+
 use clap::{Parser, Subcommand, ValueEnum};
 
 #[derive(Parser, Debug)]
@@ -26,6 +28,15 @@ pub enum CloudProviders {
     CF,
 }
 
+impl std::fmt::Display for CloudProviders {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            CloudProviders::Aws => write!(f, "Amazon Web Services"),
+            CloudProviders::CF => write!(f, "Cloudflare"),
+        }
+    }
+}
+
 #[derive(Subcommand, Debug)]
 pub enum Commands{
     ///// Configure CTK for selected provider
@@ -43,8 +54,12 @@ pub enum Commands{
         #[arg(short, long, default_value_t = false)]
         decrypt: bool,
     },
-    ///// Show container registries
-    //Creg, 
+    /// Show container registries
+    Creg {
+        /// Repository path to see images in it, if not provided - show all repositories
+        path: Option<String>,
+    }, 
+
     /// Who am I?
     Whoami,
 }

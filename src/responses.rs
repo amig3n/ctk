@@ -1,3 +1,5 @@
+use std::fmt;
+
 #[derive(Debug)]
 pub struct UserResponse {
    pub account: String,
@@ -69,3 +71,37 @@ impl FromIterator<ParameterData> for ParameterResponse {
     }
 }
 
+//ANCHOR Container Registry responses
+
+pub trait CregAllowedResponse {}
+
+#[derive(Debug)]
+pub struct CregResponse<T> where T: CregAllowedResponse {
+    pub response: Vec<T>,
+}
+
+#[derive(Debug)]
+pub struct CregRepoResponse {
+    pub path: String
+}
+
+impl CregAllowedResponse for CregRepoResponse {}
+
+impl fmt::Display for CregRepoResponse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.path)
+    }
+}
+
+#[derive(Debug)]
+pub struct CregImageResponse {
+    pub tag: String,
+}
+
+impl CregAllowedResponse for CregImageResponse {}
+
+impl fmt::Display for CregImageResponse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.tag)
+    }
+}

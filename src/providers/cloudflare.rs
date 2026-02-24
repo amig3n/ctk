@@ -45,4 +45,30 @@ impl ProviderActions for CloudflareProvider {
             ],
         })
     }
+
+    async fn list_container_registries(&self) -> Result<CregResponse<CregRepoResponse>, ProviderError> {
+        Ok(CregResponse {
+            response: vec![
+                CregRepoResponse {
+                    path: "registry1".to_string(),
+                },
+                CregRepoResponse {
+                    path: "registry2".to_string(),
+                },
+            ],
+        })
+    }
+
+    async fn list_container_registry_images(&self, registry: String) -> Result<CregResponse<CregImageResponse>, ProviderError> {
+        Ok(CregResponse{
+            response: vec![
+                CregImageResponse {
+                    tag: "latest".to_string(),
+                },
+                CregImageResponse {
+                    tag: "v1.0".to_string(),
+                },
+            ],
+        })
+    }
 }

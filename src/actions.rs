@@ -11,6 +11,7 @@ pub enum ProviderError {
     TimeoutError,
     PermissionError,
     GeneralError(String),
+    EmptyResponse(String),
 }
 
 /// Define list of actions that a single cloud provider should implement
@@ -24,6 +25,10 @@ pub trait ProviderActions {
     async fn list_instances(&self) -> Result<InstanceResponse, ProviderError>;
     /// List defined parameters
     async fn list_parameters(&self, path: Option<String>, decrypt: bool) -> Result<ParameterResponse, ProviderError>;
-    ///// List container registtries
-    //fn list_container_registries(&self) -> Result<Vec<String>, ProviderError>;
+    /// List container registtries
+    async fn list_container_registries(&self) -> Result<CregResponse<CregRepoResponse>, ProviderError>;
+    /// List container registry images
+    async fn list_container_registry_images(&self, registry: String) -> Result<CregResponse<CregImageResponse>, ProviderError>;
+
+
 }

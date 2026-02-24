@@ -223,25 +223,21 @@ impl ProviderActions for AwsProvider {
                 ProviderError::GeneralError(format!("Failed to list ECR repositories: {}", e))
             }
             )?;
-        
-        match aws_response {
-            Some(images) => {
-                let creg_response: CregResponse<CregImageResponse> = CregResponse { 
-                    response: aws_response.image_ids()
-                        .iter()
-                        .map(|image| {
-                            CregImageResponse {
-                               tag: image.image_tag(),
-                            }
-                        }).collect(),
-                }
 
-                return Ok(creg_response);
-            },
-            None => {
-                debug!("Empty response received for: {}", registry);
-                return Err(ProviderError::EmptyResponse("Empty response received"))
-            },
+        let mut parsed_aws_response: Vec<CregImageResponse> = Vec::new();
+
+        //TODO rewrite this to iterator pattern
+        for image_info in aws_response.image_ids() {
+            debug!("Appending image object");
+            parsed_aws_response.push(CregImageResponse {
+                tag: image_info.image_tag().unwrap_or("<unknown>").to_string(),
+            });
+        }
+
+        let creg_response: CregResponse<CregImageResponse> = CregResponse { 
+            response: parsed_aws_response,
         };
+
+        Ok(creg_response)
     }
 }

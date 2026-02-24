@@ -44,6 +44,7 @@ impl From<ProviderError> for AppError {
             ProviderError::TimeoutError => AppError::TimeoutError,
             ProviderError::ConnectionError => AppError::ConnectionError,
             ProviderError::PermissionError => AppError::PermissionError,
+            ProviderError::EmptyResponse(msg) => AppError::GeneralError(format!("Empty response: {}", msg)),
         }
     }
 }
@@ -118,7 +119,7 @@ pub async fn run_app() -> Result<(), AppError> {
                 Some(registry) => {
                     debug!("Obtaining images details");
                     let images: CregResponse<CregImageResponse> = provider.list_container_registry_images(registry).await?;
-                    let table: Table = Table::new(vec!["Tag"])
+                    let mut table: Table = Table::new(vec!["Tag"])
                         .with_padding(2);
 
                     images.response.iter()
@@ -126,20 +127,20 @@ pub async fn run_app() -> Result<(), AppError> {
                             table.push(vec![
                                 image.tag.clone(),
                             ]);
-                        }).collect();
+                        }).collect::<Vec<_>>();
 
                     table.render()?;
                 },
                 None => {
                     debug!("Obtaining container registry list");
                     let registries: CregResponse<CregRepoResponse> = provider.list_container_registries().await?;
-                    let table: Table = Table::new(vec!["ECR Name"])
+                    let mut table: Table = Table::new(vec!["ECR Name"])
                         .with_padding(2);
 
                     registries.response.iter()
                         .map(|creg| {
                             table.push(vec![creg.to_string()]);
-                        }).collect();
+                        }).collect::<Vec<_>>();
                     table.render()?;
                 },
             }
