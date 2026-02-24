@@ -5,9 +5,12 @@ use log::{info, debug, error};
 
 use aws_sdk_sts::Client as STSClient;
 use aws_sdk_ec2::Client as EC2Client;
+
 use aws_sdk_ssm::Client as SSMClient;
 use aws_sdk_ssm::error::SdkError;
 use aws_sdk_ssm::types::ParameterType;
+
+use aws_sdk_ecr::Client as ECRClient;
 
 use crate::responses::*;
 use async_trait::async_trait;
@@ -174,5 +177,71 @@ impl ProviderActions for AwsProvider {
         debug!("Parsed SSM parameters successfully");
         Ok(parsed_data)
     }
-}
 
+    async fn list_container_registries(&self) -> Result<CregResponse<CregRepoResponse>, ProviderError> {
+        info!("Listing AWS container registries...");
+        debug!("Creating ECR client");
+        let config = load_defaults(BehaviorVersion::latest()).await;
+        let client = ECRClient::new(&config);
+
+        debug!("No path provided, listing all ECR repositories");
+        let response = client.describe_repositories()
+            .send()
+            .await
+            .map_err(|e| {
+                error!("Failed to describe ECR repositories: {}", e);
+                ProviderError::GeneralError(format!("Failed to describe ECR repositories: {}", e))
+            }
+            )?;
+
+        Ok(
+            CregResponse {
+                response: response.repositories()
+                    .iter()
+                    .map(|repo| {
+                        debug!("Appending repository data");
+                        CregRepoResponse {
+                            path: repo.repository_name().unwrap_or("<unknown>").to_string(),
+                        }
+                    }
+                ).collect(),
+            }
+        )
+    }
+
+    async fn list_container_registry_images(&self, registry: String) -> Result<CregResponse<CregImageResponse>, ProviderError> {
+        debug!("Listing all ECR images inside repo: {} ", registry);
+        let config = load_defaults(BehaviorVersion::latest()).await;
+        let client = ECRClient::new(&config);
+
+        let aws_response = client.list_images()
+            .repository_name(registry)
+            .send()
+            .await
+            .map_err(|e| {
+                error!("Failed to list ECR repositories: {}", e);
+                ProviderError::GeneralError(format!("Failed to list ECR repositories: {}", e))
+            }
+            )?;
+        
+        match aws_response {
+            Some(images) => {
+                let creg_response: CregResponse<CregImageResponse> = CregResponse { 
+                    response: aws_response.image_ids()
+                        .iter()
+                        .map(|image| {
+                            CregImageResponse {
+                               tag: image.image_tag(),
+                            }
+                        }).collect(),
+                }
+
+                return Ok(creg_response);
+            },
+            None => {
+                debug!("Empty response received for: {}", registry);
+                return Err(ProviderError::EmptyResponse("Empty response received"))
+            },
+        };
+    }
+}

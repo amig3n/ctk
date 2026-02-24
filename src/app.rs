@@ -89,17 +89,16 @@ pub async fn run_app() -> Result<(), AppError> {
         }
     };
 
-    //FIXME handle data captures and single table.render invocation
     match cli.command {
         Commands::Whoami => {
-            debug!("Executing 'whoami' command for AWS provider");
+            debug!("Executing 'whoami' for {} provider", cli.provider.to_string());
             let user_data: UserResponse = provider.who_am_i().await?;
             let table: Table = user_data.into();
             table.with_padding(2).render()?;
         }
 
         Commands::Instances => {
-            debug!("Executing 'instances' command for AWS provider");
+            debug!("Executing 'instances' for {} provider", cli.provider.to_string());
             let instances: InstanceResponse = provider.list_instances().await?;
             let table: Table = instances.into();
             table.with_padding(2).render()?;
@@ -107,10 +106,43 @@ pub async fn run_app() -> Result<(), AppError> {
         }
 
         Commands::Params {path, decrypt} => {
-            debug!("Executing 'params' for AWS provider");
+            debug!("Executing 'params' for {} provider", cli.provider.to_string());
             let params: ParameterResponse = provider.list_parameters(path, decrypt).await?;
             let table: Table = params.into();
             table.with_padding(2).render()?;
+        }
+
+        Commands::Creg { path } => {
+            debug!("Executing 'creg' for {} provider", cli.provider.to_string());
+            match path {
+                Some(registry) => {
+                    debug!("Obtaining images details");
+                    let images: CregResponse<CregImageResponse> = provider.list_container_registry_images(registry).await?;
+                    let table: Table = Table::new(vec!["Tag"])
+                        .with_padding(2);
+
+                    images.response.iter()
+                        .map(|image| {
+                            table.push(vec![
+                                image.tag.clone(),
+                            ]);
+                        }).collect();
+
+                    table.render()?;
+                },
+                None => {
+                    debug!("Obtaining container registry list");
+                    let registries: CregResponse<CregRepoResponse> = provider.list_container_registries().await?;
+                    let table: Table = Table::new(vec!["ECR Name"])
+                        .with_padding(2);
+
+                    registries.response.iter()
+                        .map(|creg| {
+                            table.push(vec![creg.to_string()]);
+                        }).collect();
+                    table.render()?;
+                },
+            }
         }
     }
  
