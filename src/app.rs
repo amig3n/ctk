@@ -1,10 +1,13 @@
 use crate::cli::{CLI, Commands, CloudProviders};
 use clap::Parser;
 use crate::actions::{ProviderActions, ProviderError};
-use crate::providers::aws::{AwsProvider, Ec2Response, STSResponse, SsmResponse};
 use log::{info, debug, warn, error};
 
+use crate::providers::aws::AwsProvider;
+use crate::providers::cloudflare::CloudflareProvider;
+
 use crate::outputs::table::{Table, TableColumnFormat, TableError};
+use crate::responses::*;
 
 #[derive(Debug)]
 pub enum AppError {
@@ -41,6 +44,7 @@ impl From<ProviderError> for AppError {
             ProviderError::TimeoutError => AppError::TimeoutError,
             ProviderError::ConnectionError => AppError::ConnectionError,
             ProviderError::PermissionError => AppError::PermissionError,
+            ProviderError::EmptyResponse(msg) => AppError::GeneralError(format!("Empty response: {}", msg)),
         }
     }
 }
@@ -71,56 +75,78 @@ pub async fn run_app() -> Result<(), AppError> {
 
     info!("Log level set to: {}", log_level);
     debug!("CLI arguments: {:?}", cli);
-
-    match cli.provider {
-
-         CloudProviders::Aws => {
-            debug!("Selected provider: AWS");
-            let provider = AwsProvider::new();
-
-
-            //FIXME handle data captures and single table.render invocation
-            match cli.command {
-                Commands::Whoami => {
-                    debug!("Executing 'whoami' command for AWS provider");
-                    let user_data: STSResponse = provider.who_am_i().await?;
-                    let table: Table = user_data.into();
-                    table.with_padding(2).render()?;
-                }
-
-                Commands::Instances => {
-                    debug!("Executing 'instances' command for AWS provider");
-                    let instances: Ec2Response = provider.list_instances().await?;
-                    let table: Table = instances.into();
-                    table.with_padding(2).render()?;
-
-                }
-
-                Commands::Params {path, decrypt} => {
-                    debug!("Executing 'params' for AWS provider");
-                    let params: SsmResponse = provider.list_parameters(path, decrypt).await?;
-                    let table: Table = params.into();
-                    table.with_padding(2).render()?;
-                }
-
-                _ => {
-                    warn!("Command not exists or not-yet implemented");
-                    return Err(AppError::GeneralError("Command not yet implemented".to_string()));
-                }
-            }
-         }
-
-         _ => {
-            error!("Selected provider is not supported yet.");
-            return Err(AppError::GeneralError("Provider not supported".to_string()));
+    
+    let provider: Box<dyn ProviderActions> = match cli.provider {
+        CloudProviders::Aws => {
+            debug!("Using AWS provider");
+            Box::new(AwsProvider::new())
+        },
+        CloudProviders::CF => {
+            debug!("Using Cloudflare Provider");
+            Box::new(CloudflareProvider::new())
+        },
+        _ => {
+            return Err(AppError::GeneralError("Provider not implemented".to_string()))
         }
     };
 
+    match cli.command {
+        Commands::Whoami => {
+            debug!("Executing 'whoami' for {} provider", cli.provider.to_string());
+            let user_data: UserResponse = provider.who_am_i().await?;
+            let table: Table = user_data.into();
+            table.with_padding(2).render()?;
+        }
+
+        Commands::Instances => {
+            debug!("Executing 'instances' for {} provider", cli.provider.to_string());
+            let instances: InstanceResponse = provider.list_instances().await?;
+            let table: Table = instances.into();
+            table.with_padding(2).render()?;
+
+        }
+
+        Commands::Params {path, decrypt} => {
+            debug!("Executing 'params' for {} provider", cli.provider.to_string());
+            let params: ParameterResponse = provider.list_parameters(path, decrypt).await?;
+            let table: Table = params.into();
+            table.with_padding(2).render()?;
+        }
+
+        Commands::Creg { path } => {
+            debug!("Executing 'creg' for {} provider", cli.provider.to_string());
+            match path {
+                Some(registry) => {
+                    debug!("Obtaining images details");
+                    let images: CregResponse<CregImageResponse> = provider.list_container_registry_images(registry).await?;
+                    let mut table: Table = Table::new(vec!["Tag"])
+                        .with_padding(2);
+
+                    images.response.iter().for_each(|image| {
+                        let _ = table.push(vec![image.tag.clone()]);
+                    });
+                    table.render()?;
+                },
+                None => {
+                    debug!("Obtaining container registry list");
+                    let registries: CregResponse<CregRepoResponse> = provider.list_container_registries().await?;
+                    let mut table: Table = Table::new(vec!["ECR Name"])
+                        .with_padding(2);
+
+                    registries.response.iter()
+                        .for_each(|creg| {
+                            let _ = table.push(vec![creg.to_string()]);
+                        });
+                    table.render()?;
+                },
+            }
+        }
+    }
+ 
 
     //TODO move all display logic outside match
 
     debug!("Finished executing command.");
-    // Application logic goes here
     Ok(())
 }
 
